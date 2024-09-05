@@ -146,34 +146,37 @@ class ConsoleAdapter {
 
     fun printResults(results: Map<Layout, SearchHooperShortestPathResult>) {
         results.forEach { (layout, result) ->
-            val obstacles = layout.obstacles.joinToString(", ") { "[${it.fromX}-${it.toX}; ${it.fromY}-${it.toY}]" }
-            println("Solution for game layout: ${layout.area.width}x${layout.area.height} with start: [${layout.startPosition.x};${layout.startPosition.y}] end: [${layout.endPosition.x};${layout.endPosition.y}] obstacles: $obstacles")
-            val resultMessage = when (result) {
-                is SearchHooperShortestPathResult.Success ->
-                    """found - hops: 
-                        |${
-                        result.hops.joinToString("\n") {
-                            val hopperPosition = it.hopperPosition
-                            val coordinates = hopperPosition.position
-                            "${it.order}. [${coordinates.x};${coordinates.y}] - ${hopperPosition.type}"
-                        }
-                    }
-                        |""".trimMargin()
-
-                is SearchHooperShortestPathResult.NotFound -> "not found: ${result.reason}"
-            }
-            println(resultMessage)
-
+            printResult(layout, result)
             if (result is SearchHooperShortestPathResult.Success) {
-                drawDetailedTurns(result, layout)
+                drawVisualisationOfTurns(result, layout)
             }
-
         }
-
-
     }
 
-    private fun drawDetailedTurns(result: SearchHooperShortestPathResult.Success, layout: Layout) {
+    private fun printResult(
+        layout: Layout,
+        result: SearchHooperShortestPathResult
+    ) {
+        val obstacles = layout.obstacles.joinToString(", ") { "[${it.fromX}-${it.toX}; ${it.fromY}-${it.toY}]" }
+        println("Solution for game layout: ${layout.area.width}x${layout.area.height} with start: [${layout.startPosition.x};${layout.startPosition.y}] end: [${layout.endPosition.x};${layout.endPosition.y}] obstacles: $obstacles")
+        val resultMessage = when (result) {
+            is SearchHooperShortestPathResult.Success ->
+                """found - hops: 
+                            |${
+                    result.hops.joinToString("\n") {
+                        val hopperPosition = it.hopperPosition
+                        val coordinates = hopperPosition.position
+                        "${it.order}. [${coordinates.x};${coordinates.y}] - ${hopperPosition.type}"
+                    }
+                }
+                            |""".trimMargin()
+
+            is SearchHooperShortestPathResult.NotFound -> "not found: ${result.reason}"
+        }
+        println(resultMessage)
+    }
+
+    private fun drawVisualisationOfTurns(result: SearchHooperShortestPathResult.Success, layout: Layout) {
         println("Details of turns:")
 
         result.hops.forEach { turn ->
