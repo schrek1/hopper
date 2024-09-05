@@ -7,6 +7,7 @@ import cz.schrek.hopper.application.domain.model.SearchPathStack
 import cz.schrek.hopper.application.domain.service.HopperJumpsCalculator
 import cz.schrek.hopper.application.port.HooperShortPathUseCase
 import cz.schrek.hopper.application.port.SearchHooperShortestPathResult
+import cz.schrek.hopper.utils.CoroutineUtils
 import cz.schrek.hopper.utils.Logger.getLoggerForClass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -20,22 +21,23 @@ class HooperShortPathUseCaseImpl : HooperShortPathUseCase {
     override suspend fun searchShortestPath(
         vararg gameLayouts: GameBoard.Layout
     ): Map<GameBoard.Layout, SearchHooperShortestPathResult> = coroutineScope {
-        gameLayouts.map { async { it to searchShortestPath(it) } }.awaitAll().toMap()
+        gameLayouts.mapIndexed { idx, layout ->
+            async(context = coroutineContext + CoroutineUtils.ProcessIdElement(idx)) {
+                layout to searchShortestPath(layout)
+            }
+        }.awaitAll().toMap()
     }
-
 
     private suspend fun searchShortestPath(
         gameLayout: GameBoard.Layout
     ): SearchHooperShortestPathResult = coroutineScope {
         var paths = initPaths(gameLayout)
 
-        var solution = isSolutionReached(paths)
+        var solution = tryGetSolution(paths)
 
         while (solution == null) {
-            val currentDeep = paths.first().getLast().order
-            logger.info("Going deeper - current deep: $currentDeep \tpaths: ${paths.size} \ttotalItemsInStacks: ${paths.sumOf { it.getFullStack().size }}")
             paths = goDeeper(gameLayout, paths)
-            solution = isSolutionReached(paths)
+            solution = tryGetSolution(paths)
         }
 
         solution
@@ -45,6 +47,9 @@ class HooperShortPathUseCaseImpl : HooperShortPathUseCase {
         gameBoardLayout: GameBoard.Layout,
         paths: List<SearchPathStack>
     ): List<SearchPathStack> = coroutineScope {
+        val currentDeep = paths.first().getLast().order
+        logger.info("Going deeper (pId=${coroutineContext[CoroutineUtils.ProcessIdKey]?.id}) - current deep: $currentDeep \tpaths: ${paths.size} \ttotalItemsInStacks: ${paths.sumOf { it.getFullStack().size }}")
+
         paths.asSequence()
             .filter { it.getLast().hopperPosition.type != GameBoard.Field.Type.OBSTACLE && !it.hasAlreadyVisitedInStack() }
             .map { currentPathStack ->
@@ -72,7 +77,7 @@ class HooperShortPathUseCaseImpl : HooperShortPathUseCase {
             }.toList().awaitAll().flatten()
     }
 
-    private fun isSolutionReached(paths: List<SearchPathStack>): SearchHooperShortestPathResult? {
+    private fun tryGetSolution(paths: List<SearchPathStack>): SearchHooperShortestPathResult? {
         if (paths.isEmpty()) return SearchHooperShortestPathResult.NotFound("No path found")
 
         val solution = paths.firstOrNull { it.getLast().hopperPosition.type == GameBoard.Field.Type.END }
