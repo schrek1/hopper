@@ -9,6 +9,6 @@ interface HooperShortPathUseCase {
 }
 
 sealed class SearchHooperShortestPathResult {
-    class Success(val hops: List<GameTurnSnapshot>) : SearchHooperShortestPathResult()
-    class NotFound(val reason: String) : SearchHooperShortestPathResult()
+    data class Success(val hops: List<GameTurnSnapshot>) : SearchHooperShortestPathResult()
+    data class NotFound(val reason: String) : SearchHooperShortestPathResult()
 }

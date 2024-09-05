@@ -10,8 +10,14 @@ object GameBoard {
         val obstacles: List<ObstacleArea>
     ) {
         init {
-            require(obstacles.none { it.contains(startPosition) }) { "start position cannot be in an obstacle" }
-            require(obstacles.none { it.contains(endPosition) }) { "end position cannot be in an obstacle" }
+            require(area contains startPosition) { "start position must be within the game-board area" }
+            require(area contains endPosition) { "end position must be within the game-board area" }
+
+            obstacles.forEach { obstacle ->
+                require(!obstacle.contains(startPosition)) { "start position $startPosition cannot be in an obstacle $obstacle" }
+                require(!obstacle.contains(endPosition)) { "end position $endPosition cannot be in an obstacle $obstacle" }
+                require(obstacle.allCoordinates.all { area contains it }) { "obstacle $obstacle must be within the game-board area" }
+            }
         }
 
         fun getFieldType(position: Coordinates) = when {
@@ -24,8 +30,9 @@ object GameBoard {
     }
 
     data class Area(val width: Int, val height: Int) {
-        private val xRange = 0..width
-        private val yRange = 0..height
+        private val xRange = 0..<width
+
+        private val yRange = 0..<height
 
         init {
             require(width > 0) { "game-board width must be greater than 0" }
@@ -54,6 +61,14 @@ object GameBoard {
         val fromY: Int,
         val toY: Int
     ) {
+        val allCoordinates by lazy {
+            (fromX..toX).flatMap { x ->
+                (fromY..toY).map { y ->
+                    Coordinates(x, y)
+                }
+            }.toSet()
+        }
+
         init {
             require(fromX >= 0) { "obstacle x1 coordinate must be greater than or equal to 0" }
             require(toX >= 0) { "obstacle x2 coordinate must be greater than or equal to 0" }
