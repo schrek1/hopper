@@ -1,5 +1,7 @@
 package cz.schrek.hopper.application.domain.model
 
+import kotlin.math.abs
+
 object Hooper {
 
     data class MovementAbility private constructor(
@@ -23,9 +25,16 @@ object Hooper {
             MoveVector(-jumpSizeY, -jumpSizeX),
         )
 
+        fun getRelativeMoveAbility() = Pair(abs(jumpSizeX), abs(jumpSizeY))
+
+        fun isMoving() = jumpSizeX != 0 || jumpSizeY != 0
+
         companion object {
             private const val MAX_VELOCITY = 3
-            val VELOCITY_RANGE = -MAX_VELOCITY..MAX_VELOCITY
+            private val VELOCITY_RANGE = -MAX_VELOCITY..MAX_VELOCITY
+
+            val CHESS_KNIGHT_MOVEMENT_ABILITY = of(2, 1)
+            val NOT_MOVING = of(0, 0)
 
             fun of(jumpSizeX: Int, jumpSizeY: Int) = MovementAbility(
                 jumpSizeX = resolveVelocity(jumpSizeX),
