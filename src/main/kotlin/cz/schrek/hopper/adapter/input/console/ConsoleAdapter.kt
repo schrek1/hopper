@@ -25,7 +25,7 @@ class ConsoleAdapter {
         }
     }
 
-    fun readInteractiveGame(): Layout {
+    fun readInteractiveGameLayout(): Layout {
         val area = loadArea()
 
         val (start, end) = loadStartAndEnd()
@@ -40,7 +40,7 @@ class ConsoleAdapter {
         )
     }
 
-    fun readGameRequests(): List<GameRequest> {
+    fun readAutoGameRequests(): List<GameRequest> {
         val layoutsCount: Int = loadLayoutsCount()
 
         return (1..layoutsCount).map {
