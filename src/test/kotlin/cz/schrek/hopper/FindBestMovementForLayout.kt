@@ -28,30 +28,43 @@ class FindBestMovementForLayout {
             )
         )
 
-        val results = mutableMapOf<Pair<Int, Int>, String>()
+        val allMovements = mutableSetOf<Pair<Int, Int>>()
 
         for (x in 0 until gameBoardLayout.area.width) {
             for (y in 0 until gameBoardLayout.area.height) {
-                if (results.containsKey(Pair(y, x)) || results.containsKey(Pair(x, y))) continue
-
-                val result = useCase.searchShortestPath(
-                    GameRequest(
-                        gameBoardLayout = gameBoardLayout,
-                        movementAbility = Hooper.MovementAbility.of(y, x)
-                    )
-                ).entries.first().value
-
-                val output = when (result) {
-                    is SearchHooperShortestPathResult.Success -> "found in ${result.hops.size} hoops"
-                    is SearchHooperShortestPathResult.NotFound -> "not found - ${result.reason}"
-                }
-
-                results[Pair(x, y)] = output
+                if (allMovements.contains(Pair(y, x)) || allMovements.contains(Pair(x, y))) continue
+                allMovements.add(Pair(x, y))
             }
         }
 
-        results.entries.sortedBy { it.value }.forEach {
-            println("Movement: ${it.key.first}, ${it.key.second} - ${it.value}")
+        val requests = allMovements.map { (jumpX, jumpY) ->
+            GameRequest(
+                gameBoardLayout = gameBoardLayout,
+                movementAbility = Hooper.MovementAbility.of(jumpX, jumpY)
+            )
+        }.toTypedArray()
+
+        val pathSearchResults = useCase.searchShortestPath(*requests)
+
+        data class Result(val hoops: Int, val movement: Hooper.MovementAbility, val output: String)
+
+        val results = pathSearchResults.map { (request, result) ->
+            val (hoops, output) = when (result) {
+                is SearchHooperShortestPathResult.Success -> {
+                    result.hops.size to "found in ${result.hops.size} hoops"
+                }
+
+                is SearchHooperShortestPathResult.NotFound -> {
+                    Int.MAX_VALUE to "not found - ${result.reason}"
+                }
+            }
+
+            Result(hoops, request.movementAbility, output)
+        }
+
+        results.sortedBy { it.hoops }.forEach {
+            val relativeMoveAbility = it.movement.getRelativeMoveAbility()
+            println("Movement: ${relativeMoveAbility.first}, ${relativeMoveAbility.second} - ${it.output}")
         }
     }
 }
