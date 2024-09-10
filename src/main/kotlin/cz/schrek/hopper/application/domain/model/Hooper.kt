@@ -10,8 +10,8 @@ object Hooper {
     ) {
 
         init {
-            require(jumpSizeX in VELOCITY_RANGE) { "velocity for x-axis must be in $VELOCITY_RANGE" }
-            require(jumpSizeY in VELOCITY_RANGE) { "velocity y-axis must be in $VELOCITY_RANGE" }
+            require(jumpSizeX in MOVEMENT_RANGE) { "movement for x-axis must be in $MOVEMENT_RANGE" }
+            require(jumpSizeY in MOVEMENT_RANGE) { "movement y-axis must be in $MOVEMENT_RANGE" }
         }
 
         fun getAllMoves() = setOf(
@@ -30,8 +30,8 @@ object Hooper {
         fun isMoving() = jumpSizeX != 0 || jumpSizeY != 0
 
         companion object {
-            private const val MAX_VELOCITY = 3
-            private val VELOCITY_RANGE = -MAX_VELOCITY..MAX_VELOCITY
+            const val MAX_MOVEMENT_SIZE = 3
+            private val MOVEMENT_RANGE = -MAX_MOVEMENT_SIZE..MAX_MOVEMENT_SIZE
 
             val CHESS_KNIGHT_MOVEMENT_ABILITY = of(2, 1)
             val NOT_MOVING = of(0, 0)
@@ -43,8 +43,8 @@ object Hooper {
 
             private fun resolveVelocity(velocity: Int): Int {
                 return when {
-                    velocity > MAX_VELOCITY -> MAX_VELOCITY
-                    velocity < -MAX_VELOCITY -> -MAX_VELOCITY
+                    velocity > MAX_MOVEMENT_SIZE -> MAX_MOVEMENT_SIZE
+                    velocity < -MAX_MOVEMENT_SIZE -> -MAX_MOVEMENT_SIZE
                     else -> velocity
                 }
             }

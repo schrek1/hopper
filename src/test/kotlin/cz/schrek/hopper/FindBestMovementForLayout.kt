@@ -30,8 +30,8 @@ class FindBestMovementForLayout {
 
         val allMovements = mutableSetOf<Pair<Int, Int>>()
 
-        for (x in 0 until gameBoardLayout.area.width) {
-            for (y in 0 until gameBoardLayout.area.height) {
+        for (x in 0 until Hooper.MovementAbility.MAX_MOVEMENT_SIZE) {
+            for (y in 0 until Hooper.MovementAbility.MAX_MOVEMENT_SIZE) {
                 if (allMovements.contains(Pair(y, x)) || allMovements.contains(Pair(x, y))) continue
                 allMovements.add(Pair(x, y))
             }
