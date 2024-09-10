@@ -1,15 +1,46 @@
 package cz.schrek.hopper.adapter.input.console
 
 import cz.schrek.hopper.adapter.input.console.ConsoleUtils.printLnError
+import cz.schrek.hopper.adapter.input.console.dto.GameType
 import cz.schrek.hopper.application.domain.model.GameBoard
 import cz.schrek.hopper.application.domain.model.GameBoard.Area
 import cz.schrek.hopper.application.domain.model.GameBoard.Coordinates
 import cz.schrek.hopper.application.domain.model.GameBoard.Layout
-import cz.schrek.hopper.application.port.SearchHooperShortestPathResult
+import cz.schrek.hopper.application.domain.model.Hooper
+import cz.schrek.hopper.application.port.`in`.GameRequest
+import cz.schrek.hopper.application.port.`in`.SearchHooperShortestPathResult
 
 class ConsoleAdapter {
 
-    fun readGameLayout(): List<Layout> {
+    fun readGameType(): GameType {
+        println("Do you want to change movement ability in each turn? (y/n)")
+        while (true) {
+            when (readln().lowercase()) {
+                "y" -> return GameType.INTERACTIVE
+                "n" -> return GameType.AUTO
+                else -> {
+                    printLnError("Invalid input. Please enter y or n.")
+                }
+            }
+        }
+    }
+
+    fun readInteractiveGame(): Layout {
+        val area = loadArea()
+
+        val (start, end) = loadStartAndEnd()
+
+        val obstacles = loadObstacles()
+
+        return Layout(
+            area = area,
+            startPosition = start,
+            endPosition = end,
+            obstacles = obstacles
+        )
+    }
+
+    fun readGameRequests(): List<GameRequest> {
         val layoutsCount: Int = loadLayoutsCount()
 
         return (1..layoutsCount).map {
@@ -19,13 +50,50 @@ class ConsoleAdapter {
 
             val obstacles = loadObstacles()
 
-            Layout(
-                area = area,
-                startPosition = start,
-                endPosition = end,
-                obstacles = obstacles
+            val movementAbility = loadMovementAbility()
+
+            GameRequest(
+                gameBoardLayout = Layout(
+                    area = area,
+                    startPosition = start,
+                    endPosition = end,
+                    obstacles = obstacles
+                ),
+                movementAbility = movementAbility
             )
+
         }
+    }
+
+    private fun loadMovementAbility(): Hooper.MovementAbility {
+        var jumpX: Int? = -1
+        var jumpY: Int? = -1
+
+        println("Do you want to use default movement ability like Chess knight [2;1]? (y/n)")
+        val useDefault = readln().lowercase() == "y"
+
+        if (useDefault) return Hooper.MovementAbility.CHESS_KNIGHT_MOVEMENT_ABILITY
+
+        do {
+            if (jumpX == null || jumpY == null) {
+                printLnError("Invalid input. Please enter a vector x y separated by space.")
+            }
+            println("Enter hooper movement ability as vector x y:")
+            val numbers = readln().split(" ")
+            when {
+                numbers.size != 2 -> {
+                    jumpX = null
+                    jumpY = null
+                }
+
+                else -> {
+                    jumpX = numbers[0].toIntOrNull()
+                    jumpY = numbers[1].toIntOrNull()
+                }
+            }
+        } while (jumpX == null || jumpY == null)
+
+        return Hooper.MovementAbility.of(jumpSizeX = jumpX, jumpSizeY = jumpY)
     }
 
     private fun loadObstacles(): List<GameBoard.ObstacleArea> {
@@ -110,7 +178,7 @@ class ConsoleAdapter {
 
         do {
             if (width == null || height == null) {
-                printLnError("Invalid input. Please enter a coordinates x y separated by space.")
+                printLnError("Invalid input. Please enter coordinates x y separated by space.")
             }
             println("Enter game board dimension x y:")
             val numbers = readln().split(" ")
@@ -143,22 +211,13 @@ class ConsoleAdapter {
         return layoutsCount
     }
 
-
-    fun printResults(results: Map<Layout, SearchHooperShortestPathResult>) {
-        results.forEach { (layout, result) ->
-            printResult(layout, result)
-            if (result is SearchHooperShortestPathResult.Success) {
-                drawVisualisationOfTurns(result, layout)
-            }
-        }
-    }
-
-    private fun printResult(
+    fun printResult(
         layout: Layout,
         result: SearchHooperShortestPathResult
     ) {
         val obstacles = layout.obstacles.joinToString(", ") { "[${it.fromX}-${it.toX}; ${it.fromY}-${it.toY}]" }
-        println("Solution for game layout: ${layout.area.width}x${layout.area.height} with start: [${layout.startPosition.x};${layout.startPosition.y}] end: [${layout.endPosition.x};${layout.endPosition.y}] obstacles: $obstacles")
+        val obstaclesMessage = if (obstacles.isNotEmpty()) "obstacles: $obstacles" else "any"
+        println("Solution for game layout: ${layout.area.width}x${layout.area.height} with start: [${layout.startPosition.x};${layout.startPosition.y}] end: [${layout.endPosition.x};${layout.endPosition.y}] obstacles: $obstaclesMessage")
         val resultMessage = when (result) {
             is SearchHooperShortestPathResult.Success ->
                 """found - hops: 
@@ -166,7 +225,8 @@ class ConsoleAdapter {
                     result.hops.joinToString("\n") {
                         val hopperPosition = it.hopperPosition
                         val coordinates = hopperPosition.position
-                        "${it.order}. [${coordinates.x};${coordinates.y}] - ${hopperPosition.type}"
+                        val movementAbility = it.hopperMovementAbility.getRelativeMoveAbility()
+                        "${it.order}. [${coordinates.x};${coordinates.y}] - ${hopperPosition.type} - move ability (${movementAbility.first}:${movementAbility.second})"
                     }
                 }
                             |""".trimMargin()
@@ -174,13 +234,18 @@ class ConsoleAdapter {
             is SearchHooperShortestPathResult.NotFound -> "not found: ${result.reason}"
         }
         println(resultMessage)
+
+        if (result is SearchHooperShortestPathResult.Success) {
+            drawVisualisationOfTurns(result, layout)
+        }
     }
 
     private fun drawVisualisationOfTurns(result: SearchHooperShortestPathResult.Success, layout: Layout) {
         println("Details of turns:")
 
         result.hops.forEach { turn ->
-            println("Turn ${turn.order}:")
+            val moving = turn.hopperMovementAbility.getRelativeMoveAbility()
+            println("Turn ${turn.order} - move ability (${moving.first}:${moving.second})")
             layout.area.height.let { height ->
                 layout.area.width.let { width ->
                     for (y in 0..<height) {
@@ -202,5 +267,46 @@ class ConsoleAdapter {
                 }
             }
         }
+    }
+
+    fun readMovementAbility(turn: Int, currentMovementAbility: Hooper.MovementAbility): Hooper.MovementAbility {
+        if (currentMovementAbility.isMoving()) {
+            val relativeMoveAbility = currentMovementAbility.getRelativeMoveAbility()
+
+            println("Do you want change movement ability (${relativeMoveAbility.first}:${relativeMoveAbility.second}) for turn $turn? (y/n)")
+            val useDefault = readln().lowercase() == "n"
+
+            if (useDefault) return currentMovementAbility
+        }
+
+        var jumpX: Int? = -1
+        var jumpY: Int? = -1
+
+        do {
+            if (jumpX == null || jumpY == null) {
+                printLnError("Invalid input. Please enter a vector x y separated by space.")
+            }
+            println("Input movement ability vector x y (with max value 3) for turn $turn :")
+            val numbers = readln().split(" ")
+            when {
+                numbers.size != 2 -> {
+                    jumpX = null
+                    jumpY = null
+                }
+
+                else -> {
+                    jumpX = numbers[0].toIntOrNull()
+                    jumpY = numbers[1].toIntOrNull()
+
+                    if (jumpX == 0 && jumpY == 0) {
+                        printLnError("Hooper can't move...")
+                        jumpX = null
+                        jumpY = null
+                    }
+                }
+            }
+        } while (jumpX == null || jumpY == null)
+
+        return Hooper.MovementAbility.of(jumpSizeX = jumpX, jumpSizeY = jumpY)
     }
 }

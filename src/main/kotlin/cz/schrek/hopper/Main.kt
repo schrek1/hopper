@@ -1,7 +1,8 @@
 package cz.schrek.hopper
 
 import cz.schrek.hopper.adapter.input.console.ConsoleAdapter
-import cz.schrek.hopper.application.port.HooperShortPathUseCase
+import cz.schrek.hopper.adapter.input.console.dto.GameType
+import cz.schrek.hopper.application.port.`in`.HooperShortPathUseCase
 import kotlinx.coroutines.runBlocking
 
 object Main {
@@ -11,10 +12,21 @@ object Main {
         val consoleAdapter = ConsoleAdapter()
         val useCase = HooperShortPathUseCase.INSTANCE
 
-        val gameLayouts = consoleAdapter.readGameLayout()
+        val gameTyp = consoleAdapter.readGameType()
 
-        val results = useCase.searchShortestPath(*gameLayouts.toTypedArray())
+        when (gameTyp) {
+            GameType.INTERACTIVE -> {
+                val gamBoardLayout = consoleAdapter.readInteractiveGame()
+                val result = useCase.searchShortestPathInteractive(
+                    gameLayout = gamBoardLayout,
+                    movementAbilityController = consoleAdapter::readMovementAbility
+                )
+                consoleAdapter.printResult(gamBoardLayout, result)
+            }
 
-        consoleAdapter.printResults(results)
+            GameType.AUTO -> useCase.searchShortestPath(*consoleAdapter.readGameRequests().toTypedArray()).forEach {
+                consoleAdapter.printResult(it.key.gameBoardLayout, it.value)
+            }
+        }
     }
 }
